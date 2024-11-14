@@ -101,14 +101,19 @@ substUnder x m y n
   | otherwise = subst x m n
 
 subst :: String -> Expr -> Expr -> Expr
-subst _ _ (Const i) = Const i
+subst _ _ (Const i) = Const i --constants don't change
 subst x m (Plus n1 n2) = Plus (subst x m n1) (subst x m n2)
 subst x m (Var y) 
   | x == y = m
   | otherwise = Var y
 subst x m (Lam y n) = Lam y (substUnder x m y n)
 subst x m (App n1 n2) = App (subst x m n1) (subst x m n2)
-subst x m n = undefined
+subst x m (Store n) = Store (subst x m n) --substitute the stored expression
+subst x m (Recall) = Recall --nothing to substitute
+subst x m (Throw n) = Throw (subst x m n) --substitute the thrown expression
+subst x m (Catch n1 s n2)
+  | x == s = Catch (subst x m n1) s n2 --only substitute the try expression
+  | otherwise = Catch (subst x m n1) s (subst x m n2) --substitute both expressions
 
 {-------------------------------------------------------------------------------
 
@@ -202,7 +207,31 @@ bubble; this won't *just* be `Throw` and `Catch.
 -------------------------------------------------------------------------------}
 
 smallStep :: (Expr, Expr) -> Maybe (Expr, Expr)
-smallStep = undefined
+smallStep (Const x, m) = Nothing
+smallStep (Plus e1 e2, m) = case e1 of
+  Const v1 -> case e2 of
+    Const v2 -> Just (Const (v1 + v2), m) --e1 & e2 are both constants, so add as normal
+    Throw n -> Just (Throw n, m) -- e2 is a Throw exception
+    _ -> (\(e2',m') -> (Plus e1 e2', m')) <$> smallStep (e2, m) --evaluate e2
+  Throw n -> Just (Throw n, m) -- e1 is a Throw exception
+  _ -> (\(e1', m') -> (Plus e1' e2, m')) <$> smallStep (e1,m) -- evaluate e1
+smallStep (App (Lam y n) e, m) = case e of
+  Const v1 -> Just (subst y e n, m)
+  Throw v2 -> Just (Throw v2, m)
+  _ -> (\(e', m') -> (App (Lam y n) e', m')) <$> smallStep (e, m)
+smallStep (Store e, m) = case e of
+  Const v1 -> Just (Const v1, Const v1)
+  Throw v2 -> Just (Throw v2, m)
+  _ -> (\(e', m') -> (Store e', m')) <$> smallStep (e, m)
+smallStep (Recall, m) = Just (m, m)
+smallStep (Throw e, m) = case e of
+  Const v1 -> Just (Throw (Const v1), m)
+  _ -> (\(e', m') -> (Throw e', m')) <$> smallStep (e, m)
+smallStep (Catch e1 s e2, m) = case e1 of
+  Const v1 -> Just (Const v1, m) -- e1 is constant
+  Throw v2 -> Just (subst s v2 e2, m) -- if e1 Throw exception, substitute v2
+  _ -> (\(e1', m') -> (Catch e1' s e2, m')) <$> smallStep (e1, m) --evaluate e1 
+
 
 steps :: (Expr, Expr) -> [(Expr, Expr)]
 steps s = case smallStep s of
