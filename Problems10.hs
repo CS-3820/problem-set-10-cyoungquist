@@ -216,7 +216,7 @@ smallStep (Plus e1 e2, m) = case e1 of
   Throw n -> Just (Throw n, m) -- e1 is a Throw exception
   _ -> (\(e1', m') -> (Plus e1' e2, m')) <$> smallStep (e1,m) -- evaluate e1
 smallStep (App (Lam y n) e, m) = case e of
-  Const v1 -> Just (subst y e n, m)
+  Const _ -> Just (subst y e n, m)
   Throw v2 -> Just (Throw v2, m)
   _ -> (\(e', m') -> (App (Lam y n) e', m')) <$> smallStep (e, m)
 smallStep (Store e, m) = case e of
