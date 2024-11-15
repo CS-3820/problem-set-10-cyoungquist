@@ -236,7 +236,9 @@ smallStep (Throw e, m) = case smallStep (e, m) of
   Nothing -> Just (Throw e, m)
 smallStep (Catch e1 s e2, m) = case smallStep (e1, m) of -- evaluate e1
   Just (e1', m') -> Just (Catch e1' s e2, m')
-  Nothing -> Just (Catch e1 s e2, m)
+  Nothing -> case e1 of
+    Throw w -> Just (subst s w e2, m)
+    _ -> Just (e1, m)
 smallStep _ = Nothing
 
 
