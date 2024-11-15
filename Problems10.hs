@@ -209,27 +209,21 @@ bubble; this won't *just* be `Throw` and `Catch.
 smallStep :: (Expr, Expr) -> Maybe (Expr, Expr)
 smallStep (Const x, m) = Nothing
 smallStep (Plus (Const e1) (Const e2), m) = Just (Const (e1 + e2), m)
+smallStep (Plus (Const e1) e2, m) = (\(e2',m') -> (Plus (Const e1) e2', m')) <$> smallStep (e2,m)
+smallStep (Plus e1 (Const e2), m) = (\(e1',m') -> (Plus e1' (Const e2), m')) <$> smallStep (e1,m)
 smallStep (Plus e1 e2, m) = case smallStep (e1, m) of
   Just (e1', m') -> Just (Plus e1' e2, m')
   Nothing -> case smallStep (e2, m) of
     Just (e2', m') -> Just (Plus e1 e2', m')
     Nothing -> Just (Plus e1 e2, m)
-    --Const v2 -> Just (Const (v1 + v2), m) --e1 & e2 are both constants, so add as normal
-    --Throw n -> Just (Throw n, m) -- e2 is a Throw exception
-   -- _ -> (\(e2',m') -> (Plus e1 e2', m')) <$> smallStep (e2, m) --evaluate e2
-  --Throw n -> Just (Throw n, m) -- e1 is a Throw exception
-  --_ -> (\(e1', m') -> (Plus e1' e2, m')) <$> smallStep (e1,m) -- evaluate e1
 smallStep (Lam y n, m) = Nothing
 smallStep (Var s, m) = Nothing
 smallStep (App e1 e2, m) = case smallStep (e1, m) of
   Just (e1', m') -> Just (App e1' e2, m')
   Nothing -> Nothing
-smallStep (App (Lam y n) e, m) = case smallStep (e, m) of
-  Just (e', m') -> Just (App (Lam y n) e', m')
-  Nothing -> Just (subst y e n, m)
 smallStep (Store e, m) = case smallStep (e, m) of
   Just (e', m') -> Just (Store e', m')
-  Nothing -> Just (Const 0, m)
+  Nothing -> Just (Const 0, e)
 smallStep (Recall, m) = Just (m, m)
 smallStep (Throw e, m) = case smallStep (e, m) of
   Just (e', m') -> Just (Throw e', m)
