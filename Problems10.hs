@@ -218,12 +218,15 @@ smallStep (Plus e1 e2, m) = case smallStep (e1, m) of
     Nothing -> Just (Plus e1 e2, m)
 smallStep (Lam y n, m) = Nothing
 smallStep (Var s, m) = Nothing
+smallStep (App (Lam x e1) e2, m) = case smallStep (e2, m) of
+  Just (e2', m') -> Just (App (Lam x e1) e2', m')
+  Nothing -> Just (subst x e2 e1, m)
 smallStep (App e1 e2, m) = case smallStep (e1, m) of
   Just (e1', m') -> Just (App e1' e2, m')
   Nothing -> Nothing
 smallStep (Store e, m) = case smallStep (e, m) of
   Just (e', m') -> Just (Store e', m')
-  Nothing -> Just (Const 0, e)
+  Nothing -> Just (e, e)
 smallStep (Recall, m) = Just (m, m)
 smallStep (Throw e, m) = case smallStep (e, m) of
   Just (e', m') -> Just (Throw e', m)
