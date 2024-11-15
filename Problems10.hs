@@ -224,6 +224,9 @@ smallStep (Var s, m) = Nothing
 smallStep (App e1 e2, m) = case smallStep (e1, m) of
   Just (e1', m') -> Just (App e1' e2, m')
   Nothing -> Nothing
+smallStep (App (Lam y n) e, m) = case smallStep (e, m) of
+  Just (e', m') -> Just (App (Lam y n) e', m')
+  Nothing -> Just (subst y e n, m)
 smallStep (Store e, m) = case smallStep (e, m) of
   Just (e', m') -> Just (Store e', m')
   Nothing -> Just (Const 0, m)
@@ -234,6 +237,7 @@ smallStep (Throw e, m) = case smallStep (e, m) of
 smallStep (Catch e1 s e2, m) = case smallStep (e1, m) of -- evaluate e1
   Just (e1', m') -> Just (Catch e1' s e2, m')
   Nothing -> Just (Catch e1 s e2, m)
+smallStep _ = Nothing
 
 
 steps :: (Expr, Expr) -> [(Expr, Expr)]
